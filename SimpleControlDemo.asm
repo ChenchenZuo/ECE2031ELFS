@@ -128,14 +128,14 @@ TurnFaceWall:
 	OUT    	SONAREN 
 
 	LOAD	DTheta
-	ADDI	10
+	ADDI	2
 	STORE	DTheta
 	
 loop2:
 	CALL  	GetThetaErr ; get the heading error
 	CALL  	Abs         ; absolute value
 	OUT   	LCD         ; useful debug info
-	ADDI   	-5          ; check if within 5 degrees of target
+	ADDI   	-1          ; check if within 5 degrees of target
 	JPOS  	loop2      ; if not, keep testing
 	
 Check2:
@@ -153,6 +153,8 @@ Check2:
 	SUB		MaxDist
 	JPOS	TurnFaceWall	; if (distance > MaxDist) continue
 	
+	LOAD	CurrDist
+	STORE	WallMeas
 CheckIfParallelWall:
 	LOAD   	Mask0       
 	OUT    	SONAREN 
@@ -173,30 +175,8 @@ loop3:
 	CALL  	GetThetaErr ; get the heading error
 	CALL  	Abs         ; absolute value
 	OUT   	LCD         ; useful debug info
-	ADDI   	-5          ; check if within 5 degrees of target
+	ADDI   	-1          ; check if within 5 degrees of target
 	JPOS  	loop3      ; if not, keep testing
-	
-CheckIfParallelWall2:
-	IN		Dist0
-	STORE	CurrDist
-	OUT		SSEG1
-	XOR		c7FFF
-	JZERO	TurnFaceWall	; if (distance == 7FFF) continue
-	
-	LOAD	CurrDist
-	SUB		PrevDist
-	JNEG	MoveStraight
-	
-	LOAD	DTheta
-	ADDI	-10
-	STORE	DTheta
-	
-loop4:
-	CALL  	GetThetaErr ; get the heading error
-	CALL  	Abs         ; absolute value
-	OUT   	LCD         ; useful debug info
-	ADDI   	-5          ; check if within 5 degrees of target
-	JPOS  	loop4      ; if not, keep testing
 
 MoveStraight:
 	IN		Dist0
@@ -204,11 +184,12 @@ MoveStraight:
 	LOAD	DTheta
 	STORE	TurnAngle
 	
-	LOAD	Mask2
-	STORE	SONAREN
-	CALL	Wait1
-	IN		Dist2
-	STORE	WallMeas
+	;LOAD	Mask2
+	;STORE	SONAREN
+	;CALL	Wait1
+	;IN		Dist2
+	
+	;STORE	WallMeas
 	
 ;
 ;*************************************************************************************************************************
@@ -295,7 +276,7 @@ JNEG	Corner
 ;If distread-distLmax > 0, jpos to turn left slightly (<5deg)
 IN		TIMER
 SUB		tLastL
-ADDI	-27
+ADDI	-15
 JNEG	Skip1 ;Skip moving left check if has moved left in last few seconds
 
 LOAD 	DistRead
@@ -316,7 +297,7 @@ JUMP 	Skip2
 Skip1:
 IN		TIMER
 SUB		tLastR
-ADDI	-27
+ADDI	-15
 JNEG	Default ;Skip moving right check if has moved right in last few seconds
 
 LOAD	DistRead
@@ -349,22 +330,24 @@ Corner:
 LOAD	Zero
 STORE	DVel
 
+LOAD 	WallMeas
+OUT		SSEG1
 LOAD	WallDist
 SUB		WallMeas
+;SUB		75	; Going to subtract a little to adjust 
 STORE	DistToMove	
+;OUT 	SSEG1
 
-LOAD	Mask2
+LOAD	Mask3
 OUT		SONAREN
-CALL	Wait1 ;I think wait1 just stalls the execution of the next instruction but does not stop anything currently running
-IN		Dist2
+CALL	Wait1 
+IN		Dist3
 STORE   SonarC0
 
 LOAD	Zero
 STORE	XPOS
 STORE	YPOS
 
-	;Assuming don't have to reset dtheta to 0
-OUT	TIMER ;Hopefully no other procedure is using the timer?????????
 
 ;Take initial position
 IN 		XPOS
@@ -372,57 +355,66 @@ STORE 	XCor0
 IN		YPOS
 STORE	YCor0
 
-LOAD	50
+LOADI	80
 STORE	DVel
+
+OUT	TIMER
+
 ;End movement loop
-Endmove: 
+Endmove:
+;JUMP	Endcode
+
 ;Perform odometry check
-LOAD	One
-STORE 	DREASON ;Assign debug reason as 1
-IN		XPOS
-SUB		XCor0
-CALL	Abs ;In case this value is negative for some reason
-STORE	L2X
-IN		YPOS
-SUB		YCor0
-CALL	Abs ;In case this value is negative
-STORE	L2Y
-CALL	L2Estimate
-SUB		DistInC
-JPOS	Endcode
-JZERO	Endcode ;In case?
+;LOAD	One
+;STORE 	DREASON ;Assign debug reason as 1
+;IN		XPOS
+;SUB		XCor0
+;CALL	Abs ;In case this value is negative for some reason
+;STORE	L2X
+;IN		YPOS
+;SUB		YCor0
+;CALL	Abs ;In case this value is negative
+;STORE	L2Y
+;CALL	L2Estimate
+;SUB		DistInC
+;JPOS	Endcode
+;JZERO	Endcode ;In case?
 	
 ;Perform timer check
 LOAD	Two
 STORE	DREASON ;Assign debug reason as 2
 IN		TIMER
-ADDI	-10
+ADDI	-38
 JPOS	Endcode
 JZERO	Endcode ;In case
 
 ;Perform some other check? 
 LOAD 	Three
 STORE	DREASON ;Assign debug reason as 3
-IN		XPOS
-SUB		XCor0
-CALL	Abs ;In case this value is negative for some reason
-STORE	L2X
-IN		YPOS
-SUB		YCor0
-CALL	Abs ;In case this value is negative
-STORE	L2Y
-CALL	L2Estimate
-SUB		DistToMove
-JPOS	Endcode
-JZERO	Endcode ;In case
+;IN		XPOS
+;SUB		XCor0
+;CALL	Abs ;In case this value is negative for some reason
+;STORE	L2X
+;IN		YPOS
+;SUB		YCor0
+;CALL	Abs ;In case this value is negative
+;STORE	L2Y
+;CALL	L2Estimate
+;SUB		DistToMove
+;JPOS	Endcode
+;JZERO	Endcode ;In case
 
 ;Perform sonar check for certain distance passed
 LOAD	Four
 STORE	DREASON
 
-IN		Dist2
+IN		Dist3
+OUT		SSEG2
 SUB		SonarC0
-
+ADD		DistToMove
+ADD		150 ;Testing this out?
+;JNEG	Endcode
+;JZERO	Endcode
 
 
 ;Otherwise keep looping
@@ -1107,7 +1099,7 @@ DistL:		DW	 &H0000  ;Passed in from orientation phase
 DistLMax: 	DW	 &H0000
 DistLMin:  	DW	 &H0000
 DistRead:  	DW	 &H0000
-error: 		DW	 &H0020 ;Could go down to F maybe? But would need to adjust more frequently and need to disable sonar reenable
+error: 		DW	 &H0000 ;Could go down to F maybe? But would need to adjust more frequently and need to disable sonar reenable
 DistFMax:	DW	 &H1115 ;&H11F0 is 1 mm count
 CornerDiff:	DW	 &H012C	;&H01E0 is close to exact measurement in mm
 CurrTheta:	DW	 &H0000
@@ -1132,7 +1124,6 @@ WallMeas:	DW	0
 DistToMove:	DW	0
 
 SonarC0:	DW	0
-
 
 
 ;Variables from orientation*******************************************************************************

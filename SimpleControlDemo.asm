@@ -244,34 +244,51 @@ STORE	CurrTheta
 Move:
 ;Read in sensor0 value
 ;LOAD 	Mask0
-;OUT		SONAREN ;Re-enable sonar each time and wait for it to set up properly?? Ask if needed b/c might be causing a delay
+;OUT		SONAREN ;Re-enables sonar
 ;CALL	Wait1 ;If no re-enable needed, then can comment these three lines above
 IN		DIST0 
 STORE	DistRead
 OUT		SSEG2
 
-;Odometry back up break - if distance past max dF, then jpos to end code --FIX PROBLEMS SO IT STOPS IF CAN'T CORRECT FROM 7FFF
+;Odometry back up break - if distance past max dF, then jpos to end code
 	;Look at pythagorean theorem estimate - can look at one axis if better estimate
-;IN		XPOS ;If this is forward from world coordinates at reset point, then is enough
-;SUB		XInit
-;CALL	Abs
-;STORE	L2X
-;IN		YPOS
-;SUB		YInit
-;CALL	Abs
-;STORE 	L2Y
-;CALL	L2Estimate
-;SUB		DistFMax
-;JPOS 	Endcode
+IN		XPOS ;If this is forward from world coordinates at reset point, then is enough
+SUB		XInit
+CALL	Abs
+STORE	L2X
+IN		YPOS
+SUB		YInit
+CALL	Abs
+STORE 	L2Y
+CALL	L2Estimate
+SUB		DistFMax
+JPOS 	Endcode
 
-;If distread-distL < min of corner list change, jneg to corner code
+;Ignore the reading if it is 7FFF
 LOAD 	DistRead
 XOR		c7FFF   ;Ignore the reading if it is 7FFF
-JZERO	Default   ;
+JZERO	Default  
+
+;If distread-distL < min of corner list change, jneg to corner code
 LOAD	DistRead
 SUB		DistL
 ADD		CornerDiff
 JNEG	Corner
+
+;If distread-distL > 100 , make a sharp turn left
+LOAD 	DistRead
+SUB		DistL
+ADDI 	-100
+JPOS	SharpLeft
+
+;If distread < 100 or distread-distL < 100, make a sharp turn right
+LOAD	DistRead
+ADDI	-100
+JNEG	SharpRight
+LOAD	DistRead
+SUB		DistL
+ADDI 	100
+JNEG	SharpRight
 
 ;If distread-distLmax > 0, jpos to turn left slightly (<5deg)
 IN		TIMER
@@ -280,9 +297,6 @@ ADDI	-15
 JNEG	Skip1 ;Skip moving left check if has moved left in last few seconds
 
 LOAD 	DistRead
-;XOR		c7FFF
-;JZERO	Skip2	;Go back to looping if 7FFF shows up
-;LOAD	DistRead
 SUB		DistLMax
 JNEG	Skip1
 ;Orient left slightly
@@ -301,9 +315,6 @@ ADDI	-15
 JNEG	Default ;Skip moving right check if has moved right in last few seconds
 
 LOAD	DistRead
-;XOR		c7FFF
-;JZERO	Skip2
-;LOAD 	DistRead
 SUB		DistLMin
 JPOS	Skip2		
 ;Orient right slightly
@@ -313,6 +324,20 @@ STORE	CurrTheta
 IN		TIMER
 STORE	tLastR
 JUMP	Skip2
+
+;Turn sharp left if much too much higher from original left wall distance
+SharpLeft: ;Could implement a timer check here
+LOAD	DTheta
+ADDI	9
+STORE	CurrTheta
+JUMP	Skip2
+
+;Turn sharp right if too close to left wall or too much lower than original left wall distance
+SharpRight:  ;Could implement a timer check here 
+LOAD	DTheta
+ADDI	-9
+STORE 	CurrTheta
+JUMP 	Skip2
 
 ;Else continue looping
 Default:
@@ -1100,7 +1125,7 @@ DistLMax: 	DW	 &H0000
 DistLMin:  	DW	 &H0000
 DistRead:  	DW	 &H0000
 error: 		DW	 &H0000 ;Could go down to F maybe? But would need to adjust more frequently and need to disable sonar reenable
-DistFMax:	DW	 &H1115 ;&H11F0 is 1 mm count
+DistFMax:	DW	 &H23E0 ;&H11F0 is 1 mm count
 CornerDiff:	DW	 &H012C	;&H01E0 is close to exact measurement in mm
 CurrTheta:	DW	 &H0000
 

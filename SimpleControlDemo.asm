@@ -240,6 +240,9 @@ STORE	DVel
 LOAD 	DTheta
 STORE	CurrTheta
 
+IN		Timer
+STORE	T0
+
 ;Start movement loop
 Move:
 ;Read in sensor0 value
@@ -252,17 +255,23 @@ OUT		SSEG2
 
 ;Odometry back up break - if distance past max dF, then jpos to end code
 	;Look at pythagorean theorem estimate - can look at one axis if better estimate
-IN		XPOS ;If this is forward from world coordinates at reset point, then is enough
-SUB		XInit
-CALL	Abs
-STORE	L2X
-IN		YPOS
-SUB		YInit
-CALL	Abs
-STORE 	L2Y
-CALL	L2Estimate
-SUB		DistFMax
-JPOS 	Endcode
+;IN		XPOS ;If this is forward from world coordinates at reset point, then is enough
+;SUB		XInit
+;CALL	Abs
+;STORE	L2X
+;IN		YPOS
+;SUB		YInit
+;CALL	Abs
+;STORE 	L2Y
+;CALL	L2Estimate
+;SUB		DistFMax
+;JPOS 	Endcode
+
+;Timer back up break - stop movement if too much time has passed without a corner detection
+IN 		TIMER
+SUB		T0
+ADDI	-130
+JPOS	Endcode
 
 ;Ignore the reading if it is 7FFF
 LOAD 	DistRead
@@ -276,24 +285,24 @@ ADD		CornerDiff
 JNEG	Corner
 
 ;If distread-distL > 100 , make a sharp turn left
-LOAD 	DistRead
-SUB		DistL
-ADDI 	-100
-JPOS	SharpLeft
+;LOAD 	DistRead
+;SUB		DistL
+;ADDI 	-100
+;JPOS	SharpLeft
 
 ;If distread < 100 or distread-distL < 100, make a sharp turn right
-LOAD	DistRead
-ADDI	-100
-JNEG	SharpRight
-LOAD	DistRead
-SUB		DistL
-ADDI 	100
-JNEG	SharpRight
+;LOAD	DistRead
+;ADDI	-100
+;JNEG	SharpRight
+;LOAD	DistRead
+;SUB		DistL
+;ADDI 	100
+;JNEG	SharpRight
 
 ;If distread-distLmax > 0, jpos to turn left slightly (<5deg)
 IN		TIMER
 SUB		tLastL
-ADDI	-15
+ADDI	-10
 JNEG	Skip1 ;Skip moving left check if has moved left in last few seconds
 
 LOAD 	DistRead
@@ -311,7 +320,7 @@ JUMP 	Skip2
 Skip1:
 IN		TIMER
 SUB		tLastR
-ADDI	-15
+ADDI	-10
 JNEG	Default ;Skip moving right check if has moved right in last few seconds
 
 LOAD	DistRead
@@ -326,18 +335,38 @@ STORE	tLastR
 JUMP	Skip2
 
 ;Turn sharp left if much too much higher from original left wall distance
-SharpLeft: ;Could implement a timer check here
-LOAD	DTheta
-ADDI	9
-STORE	CurrTheta
-JUMP	Skip2
+;SharpLeft: ;Could implement a timer check here
+;;LOAD	DTheta
+;;ADDI	9
+;;STORE	CurrTheta
+;;JUMP	Skip2
+;IN		TIMER
+;SUB		tLastSharpL ;make a new variable here
+;ADDI	-20
+;JNEG	Default
+;LOAD	DTheta
+;ADDI	9
+;STORE	CurrTheta
+;IN		TIMER
+;STORE	tLastSharpL
+;JUMP	Skip2
 
 ;Turn sharp right if too close to left wall or too much lower than original left wall distance
-SharpRight:  ;Could implement a timer check here 
-LOAD	DTheta
-ADDI	-9
-STORE 	CurrTheta
-JUMP 	Skip2
+;SharpRight:  ;Could implement a timer check here 
+;LOAD	DTheta
+;ADDI	-9
+;STORE 	CurrTheta
+;JUMP 	Skip2
+;IN		TIMER
+;SUB		tLastSharpR ;make a new variable here
+;ADDI	-20
+;JNEG	Default
+;LOAD	DTheta
+;ADDI	-9
+;STORE 	CurrTheta
+;IN		TIMER
+;STORE	tLastSharpR
+;JUMP 	Skip2
 
 ;Else continue looping
 Default:
@@ -459,7 +488,8 @@ SUB 	ORIENT0
 CALL	Mod360
 STORE	DTheta
 
-;Beep - not sure what the low byte and high byte are supposed to mean
+;Beep - not sure what the low byte and high byte are
+CALL	Wait1
 LOAD	Tone
 OUT		BEEP
 CALL	Wait1
@@ -1134,7 +1164,7 @@ YCor0:		DW	&H0000
 DistInC:	DW	&H00C8 ;&H00E4 ;&H00F0 is 1 mm count
 
 DREASON:	DW	&H0000
-Tone:		DW	&H0010 ;250 Hz?
+Tone:		DW	&H0020 ;500 Hz?
 
 ORIENT0:   	DW	0	;Initial orientation theta pased in from orientation phase
 
@@ -1150,6 +1180,10 @@ DistToMove:	DW	0
 
 SonarC0:	DW	0
 
+tLastSharpL: 	DW	0
+tLastSharpR: 	DW 	0
+
+T0: 		DW	0
 
 ;Variables from orientation*******************************************************************************
 

@@ -233,8 +233,7 @@ STORE	DistLMin
 
 
 ;Move forward with certain velocity and 0deg angle
-LOAD	FMid
-STORE	DVel
+
 ;LOAD	Zero
 ;STORE 	DTheta ;The robot should start moving to try to match these params
 LOAD 	DTheta
@@ -245,6 +244,8 @@ STORE	T0
 
 ;Start movement loop
 Move:
+LOADI	150
+STORE	DVel
 ;Read in sensor0 value
 ;LOAD 	Mask0
 ;OUT		SONAREN ;Re-enables sonar
@@ -270,7 +271,7 @@ OUT		SSEG2
 ;Timer back up break - stop movement if too much time has passed without a corner detection
 IN 		TIMER
 SUB		T0
-ADDI	-130
+ADDI	-500  ;;
 JPOS	Endcode
 
 ;Ignore the reading if it is 7FFF
@@ -373,8 +374,17 @@ Default:
 LOAD	DTheta
 STORE	CurrTheta
 Skip2: 
+LOADI	200
+STORE	DVel
 LOAD	CurrTheta
 STORE	DTheta
+loop11:
+	CALL  	GetThetaErr ; get the heading error
+	CALL  	Abs         ; absolute value
+	OUT   	LCD         ; useful debug info
+	ADDI   	-1          ; check if within 5 degrees of target
+	JPOS  	loop11      ; if not, keep testing
+
 JUMP	Move
 
 
@@ -398,9 +408,7 @@ CALL	Wait1
 IN		Dist3
 STORE   SonarC0
 
-LOAD	Zero
-STORE	XPOS
-STORE	YPOS
+
 
 
 ;Take initial position
@@ -413,6 +421,23 @@ LOADI	80
 STORE	DVel
 
 OUT	TIMER
+
+LOAD   Zero
+OUT    LVELCMD     ; Stop motors
+OUT    RVELCMD
+STORE  DVel        ; Reset API variables
+STORE  DTheta
+OUT		RESETPOS
+
+LOADI	80
+STORE	DVel
+
+loop10:
+IN		XPOS
+SUB		DistToMove
+OUT		SSeg1
+JPOS	Endcode
+JUMP	loop10
 
 ;End movement loop
 Endmove:
@@ -1174,7 +1199,7 @@ YInit:		DW	0
 tLastL: 	DW	0
 tLastR: 	DW	0
 
-WallDist:	DW	&H1300
+WallDist:	DW	&H1255
 WallMeas:	DW	0
 DistToMove:	DW	0
 

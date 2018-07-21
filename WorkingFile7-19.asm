@@ -178,7 +178,7 @@ loop3:
 	JPOS  	loop3      ; if not, keep testing
 
 MoveStraight:
-	CALL	Wait1
+	CALL	Wait2
 	IN		Dist0
 	STORE	DistL
 	OUT		SSeg1
@@ -272,7 +272,7 @@ OUT		SSEG2
 ;Timer back up break - stop movement if too much time has passed without a corner detection
 IN 		TIMER
 SUB		T0
-ADDI	-280 ;;
+ADDI	-275 ;;
 JPOS	Endcode
 
 ;Ignore the reading if it is 7FFF
@@ -312,15 +312,29 @@ JNEG	TurnRight
 JUMP	Adjustment
 
 TurnLeft:
+IN		TIMER
+SUB		tLastL
+ADDI	-10
+JNEG	Adjustment ;Skip moving left check if has moved left in last few seconds
+
 LOAD	DTheta
 ADDI	2
 STORE	CurrTheta
+IN		TIMER
+STORE	tLastL
 JUMP	Adjustment
 
 TurnRight:
+IN		TIMER
+SUB		tLastR
+ADDI	-10
+JNEG	Adjustment ;Skip moving right check if has moved right in last few seconds
+
 LOAD	DTheta
 ADDI	-2
 STORE	CurrTheta
+IN		TIMER
+STORE	tLastR
 JUMP	Adjustment
 
 Adjustment:
@@ -1185,6 +1199,15 @@ Wloop2:
 	JNEG   Wloop2
 	RETURN
 
+Wait2:
+	OUT    TIMER
+Wloop3:
+	IN     TIMER
+	OUT    XLEDS       ; User-feedback that a pause is occurring.
+	ADDI   -20         ; 1 second at 10Hz.
+	JNEG   Wloop3
+	RETURN
+	
 ; This subroutine will get the battery voltage,
 ; and stop program execution if it is too low.
 ; SetupI2C must be executed prior to this.

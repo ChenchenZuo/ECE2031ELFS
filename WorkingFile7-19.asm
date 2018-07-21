@@ -278,7 +278,7 @@ JPOS	Endcode
 ;Ignore the reading if it is 7FFF
 LOAD 	DistRead
 XOR		c7FFF   ;Ignore the reading if it is 7FFF
-JZERO	Default  
+JZERO	Adjustment
 
 ;If distread-distL < min of corner list change, jneg to corner code
 LOAD	DistRead
@@ -302,6 +302,31 @@ JNEG	Corner
 ;JNEG	SharpRight
 
 ;***new
+
+;turn left
+LOAD	DistRead
+SUB		DistL
+;if DistRead > DistLMax
+JPOS	TurnLeft
+JNEG	TurnRight
+JUMP	Adjustment
+
+TurnLeft:
+LOAD	DTheta
+ADDI	2
+STORE	CurrTheta
+JUMP	Adjustment
+
+TurnRight:
+LOAD	DTheta
+ADDI	-2
+STORE	CurrTheta
+JUMP	Adjustment
+
+Adjustment:
+LOAD	CurrTheta
+STORE	DTheta
+JUMP	Move
 
 
 
